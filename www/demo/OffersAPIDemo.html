@@ -39,10 +39,7 @@
       <![endif]-->
    </head>
    <body>
-
       <div id="wrap">
-   
-
             <div class="container page-container">
                <div class="row">
                   <div class="no-fixed col-sm-9 col-sm-push-3 col-md-10 col-md-push-2">
@@ -53,23 +50,29 @@
                   <ul>
                       <b> show sell offers that are: </b>  
                     <li> <input type="button" ng-click="NoAcceptsAndOpen()" value="no accepts and open"  > 
-                    <li> <input type="button" value="some accepts and open"  > 
-                    <li><input type="button" value="no accepts left" >        
-                    <li> <input type="button" value="paid partially and open to accepts"  >
-                    <li> <input type="button" value="paid partially and closed to accepts">
-                    <li> <input type="button" value="paid fully and closed"  >
-                    <li> <input type="button" value="cancelled "  >
-                    <li> <input type="button" value="invalid "  >
+                    <li> <input type="button" ng-click="SomeAcceptsAndOpen()" value="some accepts and open"  > 
+                    <li><input type="button" ng-click="ClosedForAccepts()" value="no accepts left" >        
+                    <li> <input type="button" ng-click="PaidPartiallyAndOpenToAccepts()" value="paid partially and open to accepts"  >
+                    <li> <input type="button" ng-click="PaidPartiallyAndClosedToAccepts()" value="paid partially and closed to accepts">
+                    <li> <input type="button" ng-click="PaidFullyAndClosed()" value="paid fully and closed"  >
+                    <li> <input type="button" ng-click="SellingCancelled()" value="cancelled "  >
+                    <li> <input type="button" ng-click="SellingInvalid()" value="invalid "  >
                   </ul><ul> <b> show accept offers that are: </b>
-                    <li> <input type="button" value="accepted and waiting payment">
-                    <li> <input type="button" value="accepted and paid"  >
-                    <li> <input type="button" value="accepted and expired "  >
-                    <li> <input type="button" value="invalid"  >
+                    <li> <input type="button" ng-click="AcceptedAwaitingPayment()" value="accepted and waiting payment">
+                    <li> <input type="button" ng-click="AcceptedAndPaid()" value="accepted and paid"  >
+                    <li> <input type="button" ng-click="AcceptedAndExpired()" value="accepted and expired "  >
+                    <li> <input type="button" ng-click="AcceptingInvalid()" value="invalid"  >
                 </div>
                 <div class="col-sm-5 dataSection">Data appears here</div>
               </div> 
             </div>
             <!-- /container -->
+         </div>
+      </div>
+      <div id="footer" ng-controller="RevisionController" ng-init="getData()">
+         <div class="container c-footer-container">
+            <div class="revision">Updated: {{revision.last_parsed}} rev <a href='{{revision.url}}'>{{revision.commit_hexsha|characters:6}}</a> ({{revision.commit_time}})</div>
+            <div class="muted credit">&copy; Masterchain Grazcoin Grimentz 2013.</div>
          </div>
       </div>
    </body>

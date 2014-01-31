@@ -7,44 +7,42 @@ from msc_apps import *
 import tempfile
 
 def offers_response(response_dict):
-    expected_fields=['addr','currencytype','offertype','status','salestatus']
+    expected_fields=['address','currencyType','offerType','validityStatus','acceptsStatus','salesStatus']
     for field in expected_fields:
         if not response_dict.has_key(field):
             return (None, 'No field '+field+' in response dict '+str(response_dict))
         if len(response_dict[field]) != 1:
             return (None, 'Multiple values for field '+field)
-            
-    addr = response_dict['addr']
-    curr = response_dict['currencytype'].upper()
-    ot = response_dict['offertype'].upper()
-    status = response_dict['status'].upper()
-    ss = response_dict['salestatus'].upper()
-    data = sortdata(addr, curr, ot, status, ss)    
+    print response_dict        
+    data = sortdata(response_dict['address'][0],response_dict['currencyType'][0].upper(), response_dict['offerType'][0].upper(), response_dict['validityStatus'][0].upper(), response_dict['acceptsStatus'][0].upper(), response_dict['salesStatus'][0].upper())    
     
     response_status='OK'
     response='{"status":"'+response_status+'", "data":"'+ data +'"}'
     return (response, None)
 
-def sortdata(address,currencytype, offertype, status, sale_status):
-    #currencytype = TMSC, MSC
-    #offertype = Accept, Sell, Both
-    #status = Open, Closed, Invalid, Expired, All
-    #sale_status = Accepted/Not Accepted, Paid/Not Paid, All
+def sortdata(address,currencytype, offertype, validitystatus, acceptstatus, sale_status):
+    #    SELL OFFER OPTIONS     |  ACCEPT OFFER OPTIONS
+    # currencyType   =  TMSC or MSC
+    # offerType      =  SELL or ACCEPT
+    # validityStatus =  VALID, INVALID, EXPIRED or ANY
+    # acceptsStatus  =  [NONE, SOME, CLOSED, or ANY], [N/A]
+    # sale_status    =  [NONE, SOME, CLOSED, or ANY], [WAITING, PAID, N/A]
     
-    print address, offertype, status, sale_status
+    passingData = [address, offertype, validitystatus, acceptstatus, sale_status]
+    
     #get list of all offers by address
     allOffers = getOffers(address)
     if allOffers != 'no such address':
         currencyFilteredOffers = filterOffers_byCurrency(allOffers, currencytype)
         typeFilteredOffers = filterOffers_byType(currencyFilteredOffers, offertype)
-        statusFilteredOffers = filterOffers_byStatus(typeFilteredOffers, status)
+        statusFilteredOffers = filterOffers_byStatus(typeFilteredOffers, acceptstatus)
         saleStatusFilteredOffers = filterOffers_bySaleStatus(statusFilteredOffers, sale_status)
     else:
         return allOffers #no such address
     #sort list by key
     #compile sorted list and return
     
-    return saleStatusFilteredOffers
+    return str(passingData)
 
 def getOffers(address):
     import json
@@ -96,7 +94,8 @@ def filterOffers_byStatus(offers, status):
     offerstruct = {}
     for transactiontype in offers:
         for tx in offers[transactiontype]:
-            if tx.status.upper() == status == 'ALL':
+            print tx
+            if tx and status == 'ALL':
                 return
             elif status == 'OPEN':
                 return
@@ -108,8 +107,8 @@ def filterOffers_byStatus(offers, status):
                 return
             elif status == 'EXPIRED':
                 return
-def filterOffers_bySaleStatus():
-    return
+def filterOffers_bySaleStatus(one, two):
+    return 'implement me'
 
 def offers_handler(environ, start_response):
     return general_handler(environ, start_response, offers_response)
