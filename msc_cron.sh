@@ -29,7 +29,7 @@ python msc_validate.py 2>&1 > $VALIDATE_LOG
 cp tx/* www/tx/
 cp addr/* www/addr/
 cp general/* www/general/
-cp bids/* www/bids/
+cp offers/* www/offers/
 mkdir -p www/mastercoin_verify/addresses/
 cp mastercoin_verify/addresses/* www/mastercoin_verify/addresses/
 mkdir -p www/mastercoin_verify/transactions/

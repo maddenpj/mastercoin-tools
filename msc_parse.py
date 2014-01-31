@@ -23,6 +23,8 @@ def parse():
                         help="start the parsing at a specific block height (default is last)")
     parser.add_option("-a", "--archive-parsed-data", action="store_true",dest='archive', default=False,
                         help="archive the parsed data of tx addr and general for others to download")
+    parser.add_option( "-r", "--repository-path", dest='repository_path', default="~/mastercoin-tools", 
+                        help="Specify the location of the mastercoin-tools repository (defaults to ~/mastercoin-tools" )
 
     (options, args) = parser.parse_args()
     d=options.debug_mode
@@ -246,11 +248,11 @@ def parse():
         if single_tx == None and block != None:
             msc_globals.last_block=block
 
-    rev=get_revision_dict(last_block)
+    rev=get_revision_dict( last_block, options.repository_path )
     atomic_json_dump(rev, 'www/revision.json', add_brackets=False)
 
     if archive:
-        archive_parsed_data()
+        archive_parsed_data( options.repository_path )
 
 if __name__ == "__main__":
     parse()
