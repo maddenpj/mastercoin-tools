@@ -126,14 +126,23 @@ def get_nearby_valid_pubkey(pubkey):
     info("valid  "+valid_pubkey)
     return valid_pubkey
 
+def is_valid_hash(h):
+    value=h.strip()
+    if len(value) != 64:
+        return None
+    res=re.findall(r"[0-9a-fA-F]+", value)
+    if len(res)==1 and res[0]==value:
+        return value
+    return None
+
 def is_valid_bitcoin_address(value):
     value = value.strip()
     if re.match(r"[a-zA-Z1-9]{27,35}$", value) is None:
-      return None
+      return False
     version = get_bcaddress_version(value)
     if version != None:
-        return value
-    return None
+        return True
+    return False
 
 def get_bcaddress_version(address):
   """ Returns None if address is invalid. Otherwise returns integer version of address. """

@@ -15,6 +15,7 @@ tx_dict={}
 sorted_currency_tx_list={'Mastercoin':[],'Test Mastercoin':[]} # list 0 for mastercoins, list 1 for test mastercoins
 sorted_currency_sell_tx_list={'Mastercoin':[],'Test Mastercoin':[]} # list 0 for mastercoins, list 1 for test mastercoins
 sorted_currency_accept_tx_list={'Mastercoin':[],'Test Mastercoin':[]} # list 0 for mastercoins, list 1 for test mastercoins
+sorted_currency_sell_tx_list={'Mastercoin':[],'Test Mastercoin':[]} # list 0 for mastercoins, list 1 for test mastercoins
 
 # all available properties of a transaction
 tx_properties=\
@@ -34,7 +35,7 @@ tx_properties=\
      'status']
 
 # all available properties of a currency in address
-addr_properties=['balance', 'received', 'sent', 'bought', 'sold', 'offer', 'accept',\
+addr_properties=['balance', 'received', 'sent', 'bought', 'sold', 'offer', 'accept', 'reward',\
             'in_tx', 'out_tx', 'bought_tx', 'sold_tx', 'offer_tx', 'accept_tx', 'exodus_tx']
 
 # coins and their numbers
@@ -170,9 +171,11 @@ def check_bitcoin_payment(t):
                                     bought=satoshi_spot_closed, bought_tx=sell_accept_tx)
 
                                 # update sell available: min between original sell amount, the remaining offer, and the current balance
-                                update_tx_dict(sell_offer_tx['tx_hash'], amount_available=min(float(sell_offer_tx['formatted_amount']), \
-                                    from_satoshi(addr_dict[from_address][c]['offer']),from_satoshi(addr_dict[from_address][c]['balance'])))
-                                update_tx_dict(sell_offer_tx['tx_hash'], formatted_amount_available=formatted_decimal(sell_offer_tx['amount_available']))
+                                amount_available=min(float(sell_offer_tx['formatted_amount']) - \
+                                    float(from_satoshi(addr_dict[from_address][c]['accept'])), \
+                                    from_satoshi(addr_dict[from_address][c]['offer']),from_satoshi(addr_dict[from_address][c]['balance']))
+                                update_tx_dict(sell_offer_tx['tx_hash'], amount_available=amount_available, \
+                                    formatted_amount_available=formatted_decimal(amount_available))
 
                                 # if not more left in the offer - close sell
                                 if addr_dict[address][c]['offer'] == 0:
@@ -201,7 +204,7 @@ def check_bitcoin_payment(t):
 def new_addr_entry():
     entry={}
     # for each currency
-    for c in coins_list:
+    for c in coins_list+['Bitcoin']:
         currency_dict={}
         # initialize all properties
         for property in addr_properties:
@@ -267,10 +270,10 @@ def update_addr_dict(addr, accomulate, *arguments, **keywords):
     # update specific currency fields within address
     # address is first arg
     # currency is second arg:
-    # 'Mastercoin', 'Test Mastercoin' or 'exodus' for exodus purchases
+    # 'Mastercoin', 'Test Mastercoin', 'Bitcoin' or 'exodus' for exodus purchases
     # then come the keywords and values to be updated
     c=arguments[0]
-    if c!='Mastercoin' and c!='Test Mastercoin' and c!='exodus':
+    if c!='Mastercoin' and c!='Test Mastercoin' and c!='exodus' and c!= 'Bitcoin':
         error('update_addr_dict called with unsupported currency: '+c)
 
     # is there already entry for this address?
@@ -351,15 +354,39 @@ def update_bids():
         # write updated bids
         atomic_json_dump(bids_dict[tx_hash], 'bids/bids-'+tx_hash+'.json', add_brackets=False)
 
+def update_bitcoin_balances():
+    chunk=100
+    addresses=addr_dict.keys()
 
+    # cut into chunks
+    for i in range(len(addresses)/chunk):
+        addr_batch=addresses[i*chunk:(i+1)*chunk]
+
+        # create the string of all addresses
+        addr_batch_str=''
+        for a in addr_batch:
+            addr_batch_str=addr_batch_str+a+' '
+
+        # get the balances
+        balances=get_balance(addr_batch_str)
+
+        # update addr_dict with bitcoin balance
+        for b in balances:
+            update_addr_dict(b['address'], False, 'Bitcoin', balance=b['paid'])
+       
+ 
 # generate api json
 # address
 # general files (10 in a page)
 # mastercoin_verify
 def generate_api_jsons():
 
+    # prepare updated snapshot of bitcoin balances for all addresses
+    update_bitcoin_balances()
+
     # create file for each address
     for addr in addr_dict.keys():
+        balances_list=[]
         addr_dict_api={}
         addr_dict_api['address']=addr
         for c in coins_list:
@@ -382,11 +409,18 @@ def generate_api_jsons():
             sub_dict['total_bought']=from_satoshi(addr_dict[addr][c]['bought'])
             sub_dict['total_sell_accept']=from_satoshi(addr_dict[addr][c]['accept'])
             sub_dict['total_sell_offer']=from_satoshi(addr_dict[addr][c]['offer'])
-            sub_dict['balance']=from_satoshi(addr_dict[addr][c]['balance'])
+            if addr==exodus_address:
+                available_reward=get_available_reward(last_height)
+                sub_dict['balance']=from_satoshi(available_reward+addr_dict[addr][c]['balance'])
+            else:
+                sub_dict['balance']=from_satoshi(addr_dict[addr][c]['balance'])
             sub_dict['exodus_transactions']=addr_dict[addr][c]['exodus_tx']
             sub_dict['exodus_transactions'].reverse()
             sub_dict['total_exodus']=from_satoshi(addr_dict[addr]['exodus']['bought'])
+            balances_list.append({"symbol":coins_short_name_dict[c],"value":sub_dict['balance']})
             addr_dict_api[coins_dict[c]]=sub_dict
+        balances_list.append({"symbol":"BTC","value":from_satoshi(addr_dict[addr]['Bitcoin']['balance'])})
+        addr_dict_api['balance']=balances_list
         atomic_json_dump(addr_dict_api, 'addr/'+addr+'.json', add_brackets=False)
 
     # create files for msc and files for test_msc
@@ -418,25 +452,37 @@ def generate_api_jsons():
                 'general/'+coins_short_name_dict[c]+'_'+'{0:04}'.format(i+1)+'.json', add_brackets=False)
             pages[c]+=1
 
-    # create the latest accept transactions page
+    # create the latest sell and accept transactions page
     for c in coins_list:
         for t in sorted_currency_tx_list[c]:
+            if t['tx_type_str']=='Sell offer':
+                sorted_currency_sell_tx_list[c].append(t)
             if t['tx_type_str']=='Sell accept':
                 sorted_currency_accept_tx_list[c].append(t)
 
+    sell_pages={'Mastercoin':0, 'Test Mastercoin':0}
     accept_pages={'Mastercoin':0, 'Test Mastercoin':0}
     for c in coins_list:
+        for i in range(len(sorted_currency_sell_tx_list[c])/chunk):
+            atomic_json_dump(sorted_currency_sell_tx_list[c][i*chunk:(i+1)*chunk], \
+                'general/'+coins_short_name_dict[c]+'_sell_'+'{0:04}'.format(i+1)+'.json', add_brackets=False)
+            sell_pages[c]+=1
         for i in range(len(sorted_currency_accept_tx_list[c])/chunk):
             atomic_json_dump(sorted_currency_accept_tx_list[c][i*chunk:(i+1)*chunk], \
                 'general/'+coins_short_name_dict[c]+'_accept_'+'{0:04}'.format(i+1)+'.json', add_brackets=False)
             accept_pages[c]+=1
 
     # update values.json
-    values_list=load_dict_from_file('www/values.json', all_list=True)
+    values_list=load_dict_from_file('www/values.json', all_list=True, skip_error=True)
+    # on missing values.json, take an empty default
+    if values_list=={}:
+        values_list=[{"currency": "MSC", "name": "Mastercoin", "name2": "", "pages": 1, "trend": "down", "trend2": "rgb(13,157,51)"}, \
+                     {"currency": "TMSC", "name": "Test MSC", "name2": "", "pages": 1, "trend": "up", "trend2": "rgb(212,48,48)"}]
     updated_values_list=[]
     for v in values_list:
         v['pages']=pages[coins_reverse_short_name_dict[v['currency']]]
         v['accept_pages']=accept_pages[coins_reverse_short_name_dict[v['currency']]]
+        v['sell_pages']=sell_pages[coins_reverse_short_name_dict[v['currency']]]
         updated_values_list.append(v)
     atomic_json_dump(updated_values_list, 'www/values.json', add_brackets=False)
 
@@ -447,7 +493,11 @@ def generate_api_jsons():
         for addr in addr_dict.keys():
             sub_dict={}
             sub_dict['address']=addr
-            sub_dict['balance']=from_satoshi(addr_dict[addr][c]['balance'])
+            if addr==exodus_address:
+                available_reward=get_available_reward(last_height)
+                sub_dict['balance']=from_satoshi(available_reward+addr_dict[addr][c]['balance'])
+            else:
+                sub_dict['balance']=from_satoshi(addr_dict[addr][c]['balance'])
             mastercoin_verify_list.append(sub_dict)
         atomic_json_dump(sorted(mastercoin_verify_list, key=lambda k: k['address']), 'mastercoin_verify/addresses/'+subdir, add_brackets=False)
 
@@ -468,6 +518,17 @@ def generate_api_jsons():
         mastercoin_verify_tx_per_address={'address':addr, 'transactions':verify_tx_list}
         atomic_json_dump(mastercoin_verify_tx_per_address, 'mastercoin_verify/transactions/'+addr, add_brackets=False)     
         
+def get_available_reward(height):
+    all_reward=int(addr_dict[exodus_address][coins_list[0]]['reward'])
+    # part available is (1 - 0.5^years)
+    (block_timestamp, err)=get_block_timestamp(height)
+    if block_timestamp == None:
+        error('failed getting block timestamp of '+str(block)+': '+err)
+    seconds_passed=block_timestamp-exodus_bootstrap_deadline
+    years=(seconds_passed+0.0)/seconds_in_one_year
+    part_available=1-0.5**years
+    available_reward=all_reward*part_available
+    return available_reward
 
 # validate a matercoin transaction
 def check_mastercoin_transaction(t, index=-1):
@@ -495,8 +556,8 @@ def check_mastercoin_transaction(t, index=-1):
         update_addr_dict(to_addr, True, 'exodus', bought=amount_transfer)
         # exodus bonus - 10% for exodus (available slowly during the years)
         ten_percent=int((amount_transfer+0.0)/10+0.5)
-        update_addr_dict(exodus_address, True, 'Mastercoin', balance=ten_percent, exodus_tx=t)
-        update_addr_dict(exodus_address, True, 'Test Mastercoin', balance=ten_percent, exodus_tx=t)
+        update_addr_dict(exodus_address, True, 'Mastercoin', reward=ten_percent, exodus_tx=t)
+        update_addr_dict(exodus_address, True, 'Test Mastercoin', reward=ten_percent, exodus_tx=t)
 
         # all exodus are done
         update_tx_dict(t['tx_hash'], color='bgc-done', icon_text='Exodus')
@@ -521,7 +582,13 @@ def check_mastercoin_transaction(t, index=-1):
                 mark_tx_invalid(tx_hash, 'pay from a non existing address')
                 return False 
             else:
-                balance_from=addr_dict[from_addr][c]['balance']
+                if from_addr==exodus_address:
+                    # in the exodus case, the balance to spend is the available reward
+                    # plus the negative balance
+                    available_reward=get_available_reward(t['block'])
+                    balance_from=available_reward+addr_dict[from_addr][c]['balance']
+                else:
+                    balance_from=addr_dict[from_addr][c]['balance']
                 if amount_transfer > int(balance_from):
                     debug('balance of '+currency+' is too low on '+tx_hash)
                     mark_tx_invalid(tx_hash, 'balance too low')
@@ -541,7 +608,17 @@ def check_mastercoin_transaction(t, index=-1):
                     seller_balance=from_satoshi(addr_dict[from_addr][c]['balance'])
                 except KeyError: # no such address
                     seller_balance=0.0
-                amount_available=min(float(t['formatted_amount']), seller_balance)
+                try:
+                    seller_offer=from_satoshi(addr_dict[from_addr][c]['offer'])
+                except KeyError: # no such address
+                    seller_offer=0.0
+                try:
+                    seller_accept=from_satoshi(addr_dict[from_addr][c]['accept'])
+                except KeyError: # no such address
+                    seller_accept=0.0
+
+                amount_available=min(float(t['formatted_amount']) - float(seller_accept), float(seller_offer), \
+                    float(seller_balance))
                 update_tx_dict(t['tx_hash'], icon_text='Sell Offer ('+str(tx_age)+' confirms)', \
                     amount_available=amount_available, formatted_amount_available=formatted_decimal(amount_available))
                 # sell offer from empty or non existing address is allowed
@@ -567,13 +644,16 @@ def check_mastercoin_transaction(t, index=-1):
                     except KeyError:
                         accept_amount_requested=0.0
                     try:
-                        sell_offer=addr_dict[to_addr][c]['offer']           # get orig offer from seller
+                        sell_offer=from_satoshi(addr_dict[to_addr][c]['offer']) # get orig offer from seller
                         sell_offer_tx=addr_dict[to_addr][c]['offer_tx'][-1] # get orig offer tx (last) from seller
                     except (KeyError, IndexError):
                         # offer from wallet without entry (empty wallet)
                         info('accept offer from missing seller '+to_addr)
                         mark_tx_invalid(tx_hash, 'accept offer of missing sell offer')
                         return False
+
+                    # amount accepted is min between requested and offer
+                    amount_accepted=min(float(accept_amount_requested),sell_offer)
 
                     # required fee calculation
                     try:
@@ -588,28 +668,34 @@ def check_mastercoin_transaction(t, index=-1):
                         info('accept offer without minimal fee on tx: '+tx_hash)
                         mark_tx_invalid(tx_hash, 'accept offer without required fee')
                         return False
-
-                    try:
-                        formatted_price_per_coin=sell_offer_tx['formatted_price_per_coin']
-                    except KeyError:
-                        formatted_price_per_coin='price missing'
-                    t['formatted_price_per_coin']=formatted_price_per_coin
+                    
                     try:
                         # need to pay the part of the sell offer which got accepted
-                        part=float(t['formatted_amount_accepted'])/float(sell_offer_tx['formatted_amount'])
+                        part=float(amount_accepted/float(sell_offer_tx['formatted_amount']))
                         bitcoin_required=float(sell_offer_tx['formatted_bitcoin_amount_desired'])*part
                     except KeyError:
                         bitcoin_required='missing required btc'
 
-                    update_tx_dict(t['tx_hash'], bitcoin_required=bitcoin_required, sell_offer_txid=sell_offer_tx['tx_hash'], \
-                        btc_offer_txid='unknown')
+                    update_tx_dict(t['tx_hash'], bitcoin_required=str(bitcoin_required), sell_offer_txid=sell_offer_tx['tx_hash'], \
+                        formatted_price_per_coin=sell_offer_tx['formatted_price_per_coin'], formatted_amount_accepted=str(amount_accepted), \
+                        formatted_amount_bought='0.0', btc_offer_txid='unknown')
 
                     spot_accept=min(float(sell_offer),float(accept_amount_requested))   # the accept is on min of all
                     if spot_accept > 0: # ignore 0 or negative accepts
 
+                        # update sell accept
                         update_tx_dict(t['tx_hash'], formatted_amount_accepted=spot_accept, payment_done=False, payment_expired=False)
                         payment_timeframe=int(sell_offer_tx['formatted_block_time_limit'])
                         add_alarm(t['tx_hash'], payment_timeframe)
+
+                        # update sell offer
+                        # update sell available: min between original sell amount less the already accepted,
+                        # the remaining offer, and the current balance
+                        amount_available=min(float(sell_offer_tx['formatted_amount']) - \
+                            float(from_satoshi(addr_dict[to_addr][c]['accept'])), \
+                            from_satoshi(addr_dict[to_addr][c]['offer']),from_satoshi(addr_dict[to_addr][c]['balance']))
+                        update_tx_dict(sell_offer_tx['tx_hash'], amount_available=amount_available, \
+                            formatted_amount_available=formatted_decimal(amount_available))
 
                         # accomulate the spot accept on the seller side
                         update_addr_dict(from_addr, True, c, accept=to_satoshi(spot_accept), accept_tx=t)
@@ -644,6 +730,18 @@ def validate():
     msc_globals.init()
     msc_globals.d=options.debug_mode
 
+    # don't bother validating if no new block was generated
+    last_validated_block=0
+    try:
+        f=open(LAST_VALIDATED_BLOCK_NUMBER_FILE,'r')
+        last_validated_block=int(f.readline())
+        f.close()
+        if last_validated_block == int(last_height):
+            info('last validated block '+str(last_validated_block)+' is identical to current height')
+            exit(0)
+    except IOError:
+        pass
+
     info('starting validation process')
 
     # load tx_dict
@@ -651,6 +749,9 @@ def validate():
 
     # get all tx sorted
     sorted_tx_list=get_sorted_tx_list()
+
+    # keep the last block which will get validated
+    updated_last_validated_block=sorted_tx_list[-1]['block']
 
     # use an artificial empty last tx with last height as a trigger for alarm check
     sorted_tx_list.append({'invalid':(True,'fake tx'), 'block':last_height, 'tx_hash':'fake'})
@@ -694,6 +795,11 @@ def validate():
 
     # generate address pages and last tx pages
     generate_api_jsons()
+
+    # write last validated block
+    f=open(LAST_VALIDATED_BLOCK_NUMBER_FILE,'w')
+    f.write(str(last_block)+'\n')
+    f.close()
 
     info('validation done')
 

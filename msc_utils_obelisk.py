@@ -62,7 +62,8 @@ def get_tx(tx_hash):
 def get_tx_index(tx_hash):
     out, err = run_command("sx fetch-transaction-index "+tx_hash)
     if err != None:
-        error(err)
+        info(err)
+        return (-1, -1)
     else:
         try:
             s=out.split()
@@ -144,6 +145,17 @@ def get_utxo(addr, value):
         return err
     else:
         return out
+
+def get_balance(addrs):
+    out, err = run_command("sx balance -j "+addrs)
+    if err != None:
+        return err
+    else:
+        try:
+            parsed_json_balance=simplejson.JSONDecoder().decode(out)
+        except simplejson.JSONDecodeError:
+            error('error parsing balance json')
+        return parsed_json_balance
 
 def rawscript(script):
     out, err = run_command("sx rawscript "+script)
