@@ -42,33 +42,23 @@
       <div id="wrap">
             <div class="container page-container">
                <div class="row">
-                  <div class="no-fixed col-sm-9 col-sm-push-3 col-md-10 col-md-push-2">
                      <div class="inner">
                        
-                <div class="col-sm-5" ng-controller="APITestController" > enter btc address here:   
-                     <input class="btcaddress" value="17rExRiMaJGgHPVuYjHL21mEhfzbRPRkui">
+                <div ng-controller="APITestController" >    
+                  <div class="col-sm-5"> 
+                    enter btc address here:
+                  <input class="btcaddress" style="width:400px;" value="17rExRiMaJGgHPVuYjHL21mEhfzbRPRkui">
                   <ul>
-                      <b> show sell offers that are: </b>  
-                    <li> <input type="button" ng-click="NoAcceptsAndOpen()" value="no accepts and open"  > 
-                    <li> <input type="button" ng-click="SomeAcceptsAndOpen()" value="some accepts and open"  > 
-                    <li><input type="button" ng-click="ClosedForAccepts()" value="no accepts left" >        
-                    <li> <input type="button" ng-click="PaidPartiallyAndOpenToAccepts()" value="paid partially and open to accepts"  >
-                    <li> <input type="button" ng-click="PaidPartiallyAndClosedToAccepts()" value="paid partially and closed to accepts">
-                    <li> <input type="button" ng-click="PaidFullyAndClosed()" value="paid fully and closed"  >
-                    <li> <input type="button" ng-click="SellingCancelled()" value="cancelled "  >
-                    <li> <input type="button" ng-click="SellingInvalid()" value="invalid "  >
-                  </ul><ul> <b> show accept offers that are: </b>
-                    <li> <input type="button" ng-click="AcceptedAwaitingPayment()" value="accepted and waiting payment">
-                    <li> <input type="button" ng-click="AcceptedAndPaid()" value="accepted and paid"  >
-                    <li> <input type="button" ng-click="AcceptedAndExpired()" value="accepted and expired "  >
-                    <li> <input type="button" ng-click="AcceptingInvalid()" value="invalid"  >
+                  </ul><ul> <b> Offers by address: </b>
+                    <li> <input type="button" style="margin-top:5px;" ng-click="ShowSellAndPaidOffers()" value="Selling and Paid"  > 
+                    <li> <input type="button" style="margin-top:5px;" ng-click="ShowAcceptAndBoughtOffers()" value="Accepted and Bought">
+
                 </div>
-                <div class="col-sm-5 dataSection">Data appears here</div>
-              </div> 
+                <div style="overflow:auto; height: 300px;" class="col-sm-7 dataSection">Data appears here</div>
+              </div>
             </div>
-            <!-- /container -->
-         </div>
-      </div>
+          </div>
+     </div>
       <div id="footer" ng-controller="RevisionController" ng-init="getData()">
          <div class="container c-footer-container">
             <div class="revision">Updated: {{revision.last_parsed}} rev <a href='{{revision.url}}'>{{revision.commit_hexsha|characters:6}}</a> ({{revision.commit_time}})</div>

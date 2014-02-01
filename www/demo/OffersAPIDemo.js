@@ -10,68 +10,30 @@ function APITestController($scope, $http) {
        return $('.btcaddress').val();
     }
     
-    function makeRequest(offer, valid, accept, sale) {
+    function makeRequest(offer, valid,  div) {
       //     SELL OFFER OPTIONS     |  ACCEPT OFFER OPTIONS
       // TMSC or MSC                                       
-      // SELL or ACCEPT                                    
-      // VALID, INVALID, EXPIRED or ANY                    
-      // [NONE, SOME, CLOSED, or ANY], [N/A]               
-      // [NONE, SOME, CLOSED, or ANY], [WAITING, PAID, N/A]
+      // SELL, ACCEPT or BOTH                                    
       var postData = { 
         address: getAddress(), 
         currencyType: ctype,   
-        offerType: offer,      
-        validityStatus: valid, 
-        acceptsStatus: accept, 
-        salesStatus: sale      
+        offerType: offer      
       };
+      div ? div = $('.dataSection') : div = $('.dataSection2');
       console.log("POST DATA: ", postData);
       $.post('/api/offers/', postData , function(data,status,headers,config) {
-         $('.dataSection').text(JSON.stringify(data));
+         div.text(JSON.stringify(data));
          console.log(data);
       });
     }
 
-    //Sell Orders
-    $scope.NoAcceptsAndOpen = function() {
-      makeRequest('SELL', 'VALID', 'NONE', 'NONE');
+    $scope.ShowSellAndPaidOffers = function() {
+      makeRequest('SELL', 'VALID', 'NONE', 'NONE', 1);
+    };                         
+    $scope.ShowAcceptAndBoughtOffers = function() {
+      makeRequest('ACCEPT', 'VALID', 'NONE', 'NONE', 1);
     };                                     
-    $scope.SomeAcceptsAndOpen = function() {
-      makeRequest('SELL', 'VALID', 'SOME', 'NONE');
-    };
-    $scope.ClosedForAccepts = function() {
-      makeRequest('SELL', 'VALID', 'CLOSED', 'NONE');
-    };
-    $scope.PaidPartiallyAndOpenToAccepts = function() {
-      makeRequest('SELL', 'VALID', 'ANY', 'SOME');
-    };
-    $scope.PaidPartiallyAndClosedToAccepts = function() {
-      makeRequest('SELL', 'VALID', 'CLOSED', 'SOME');
-    };
-    $scope.PaidFullyAndClosed = function() {
-      makeRequest('SELL', 'VALID', 'CLOSED', 'CLOSED');
-    };
-    $scope.SellingCancelled = function() {
-      makeRequest('SELL', 'EXPIRED', 'ANY', 'ANY');
-    };
-    $scope.SellingInvalid = function() {
-      makeRequest('SELL', 'INVALID', 'ANY', 'ANY');
-    };
-    
-    
-   //Accept Orders
-    $scope.AcceptedAwaitingPayment = function() {
-      makeRequest('ACCEPT', 'VALID', 'N/A', 'WAITING');
-    };
-    $scope.AcceptedAndPaid = function() {
-      makeRequest('ACCEPT', 'VALID', 'N/A', 'PAID');
-    };
-    $scope.AcceptedAndExpired = function() {
-      makeRequest('ACCEPT', 'EXPIRED', 'N/A', 'N/A');
-    };
-    $scope.AcceptingInvalid = function() {
-      makeRequest('ACCEPT', 'INVALID', 'N/A', 'N/A');
-    };
+
 }
 
 

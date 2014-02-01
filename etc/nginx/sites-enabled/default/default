@@ -18,11 +18,11 @@
 ##
 
 server {
-	listen 81 default_server;
-	listen [::]:81 default_server ipv6only=on;
+	listen 80 default_server;
+	listen [::]:80 default_server ipv6only=on;
 
-	## Set this to reflect the location of the www directory within the msc-webwallet repo.
-	root /home/faiz/Documents/Engine/mastercoin/mastercoin-tools/www;
+	## Set this to reflect the location of the www directory within the mastercoin-tools repo.
+	root ~/mastercoin-tools/www;
 	index index.html index.htm;
 
 	# Make site accessible from http://localhost/
@@ -69,8 +69,8 @@ server {
         uwsgi_param UWSGI_MODULE   $app;
         uwsgi_param UWSGI_CALLABLE   "${app}_handler";
 
-	set $PORT 1089;
-        location /wallet/validateaddr/ {
+	set $PORT 1088;
+      location /wallet/validateaddr/ {
             set   $app   validateaddr;
             uwsgi_pass   127.0.0.1:$PORT;
         }
