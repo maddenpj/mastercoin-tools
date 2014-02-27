@@ -4,6 +4,7 @@ from msc_utils_obelisk import *
 currency_type_dict={'00000001':'Mastercoin','00000002':'Test Mastercoin'}
 reverse_currency_type_dict={'Mastercoin':'00000001','Test Mastercoin':'00000002'}
 transaction_type_dict={'0000':'Simple send', '0014':'Sell offer', '0016':'Sell accept'}
+sell_offer_action_dict={'00':'Undefined', '01':'New', '02':'Update', '03':'Cancel'}
 exodus_address='1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P'
 first_exodus_bootstrap_block=249498
 last_exodus_bootstrap_block=255365
@@ -63,8 +64,12 @@ def parse_2nd_data_script(data_script):
         info('invalid data script '+data_script.encode('hex_codec'))
         return parse_dict
     parse_dict['fee_required']=data_script[4:10]
-    parse_dict['action']=data_script[10:11]
-    parse_dict['should_be_zeros']=data_script[11:54]
+    parse_dict['action']=data_script[10:12]
+    parse_dict['should_be_zeros']=data_script[12:54]
+    try:
+        parse_dict['action_str']=sell_offer_action_dict[parse_dict['action']]
+    except KeyError:
+        parse_dict['action_str']='unknown '+str(parse_dict['action'])
     return parse_dict
 
 def parse_bitcoin_payment(tx, tx_hash='unknown'):
@@ -145,6 +150,11 @@ def class_A_Level_1(outputs_list):
         if int(seq,16)==int(recipient_seq):
             # taking the first one (there may be more)
             recipient=o['address']
+    # on failure with 3 outputs case, take non data/exodus to be the recipient
+    if len(outputs_list) == 3:
+        for o in outputs_list:
+            if o['address'] != exodus_address and o != data_output:
+                recipient = o['address']
     return ((False,''), data_output, recipient)
 
 # "Class A" transaction
@@ -269,6 +279,12 @@ def parse_multisig(tx, tx_hash='unknown'):
         if o['address']!=exodus_address:
             to_address=o['address']
             continue
+
+    # no recipient?
+    if to_address=='unknown':
+        info('no recipient tx '+tx_hash)
+        return {'tx_hash':tx_hash, 'invalid':(True, 'no recipient')}
+
     for o in outputs_list_no_exodus:
         if o['address']==None: # This should be the multisig
             script=o['script']
@@ -361,8 +377,8 @@ def parse_multisig(tx, tx_hash='unknown'):
 
                         if len(dataHex_deobfuscated_list)>1: # currently true only for Sell offer (?)
                             data_dict=parse_2nd_data_script(dataHex_deobfuscated_list[1])
-                            if data_dict['should_be_zeros'] == '00000000000000000000000000000000000000000000' or \
-                               data_dict['should_be_zeros'] == '0000000000000000000000000000000000000000000':
+                            if data_dict['should_be_zeros'] == '0000000000000000000000000000000000000000000' or \
+                               data_dict['should_be_zeros'] == '000000000000000000000000000000000000000000':
                                 data_dict.pop('should_be_zeros')
                                 for key in data_dict:
                                     parse_dict[key]=data_dict[key]
