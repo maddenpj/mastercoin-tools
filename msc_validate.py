@@ -479,19 +479,11 @@ def mark_tx_invalid(tx_hash, reason):
     update_tx_dict(tx_hash, invalid=(True,reason), color='bgc-invalid')
 
 # add another sell tx to the modified dict
-<<<<<<< HEAD
 def add_offers(key, t):
     if offers_dict.has_key(key):
-        offers_dict[key].append(t)
+        offers_dict[key].append(t['tx_hash'])
     else:
-        offers_dict[key]=[t]
-=======
-def add_bids(key, t):
-    if bids_dict.has_key(key):
-        bids_dict[key].append(t['tx_hash'])
-    else:
-        bids_dict[key]=[t['tx_hash']]
->>>>>>> 43009d98d9db6926506bb3fd729b651c1a28c3aa
+        offers_dict[key]=[t['tx_hash']]
 
 
 # write back to fs all tx which got modified
@@ -504,23 +496,15 @@ def write_back_modified_tx():
             # save back to filesystem
             atomic_json_dump(tx_dict[k], 'tx/'+k+'.json', add_brackets=False)
 
-<<<<<<< HEAD
 # create offers json
 def update_offers():
     for tx_hash in offers_dict.keys():
-        # write updated offers
-        atomic_json_dump(offers_dict[tx_hash], 'offers/offers-'+tx_hash+'.json', add_brackets=False)
-=======
-# create bids json
-def update_bids():
-    for tx_hash in bids_dict.keys():
         # generate tx list for each tx_hash
-        bids=[]
-        for b_hash in bids_dict[tx_hash]:
-            bids.append(tx_dict[b_hash][-1])
-        # write updated bids
-        atomic_json_dump(bids, 'bids/bids-'+tx_hash+'.json', add_brackets=False)
->>>>>>> 43009d98d9db6926506bb3fd729b651c1a28c3aa
+        offers=[]
+        for b_hash in offers_dict[tx_hash]:
+            offers.append(tx_dict[b_hash][-1])
+        # write updated offers
+        atomic_json_dump(offers, 'offers/offers-'+tx_hash+'.json', add_brackets=False)
 
 def update_bitcoin_balances():
     if msc_globals.b == True:
@@ -1102,23 +1086,16 @@ def check_mastercoin_transaction(t, index=-1):
                         else:
                             update_tx_dict(sell_offer_tx['tx_hash'], color='bgc-accepted', icon_text='Sell offer accepted')
                     else:
-<<<<<<< HEAD
-                        mark_tx_invalid(t['tx_hash'],'non positive spot accept')
+                        mark_tx_invalid(t['tx_hash'],'non positive amount accepted')
+
                     # add to current offers (which appear on seller tx)
                     key=sell_offer_tx['tx_hash']
                     add_offers(key, t)
-=======
-                        mark_tx_invalid(t['tx_hash'],'non positive amount accepted')
-
-                    # add to current bids (which appear on seller tx)
-                    key=sell_offer_tx['tx_hash']
-                    add_bids(key, t)
 
                     # heavy debug
                     debug_address(from_addr,c, 'after sell accept')
                     debug_address(to_addr,c, 'after sell accept')
 
->>>>>>> 43009d98d9db6926506bb3fd729b651c1a28c3aa
                     return True
                 else:
                     info('unknown tx type: '+t['tx_type_str']+' in '+tx_hash)
