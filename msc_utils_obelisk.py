@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import simplejson
+import re
 import os
 import msc_globals
 from msc_utils_bitcoin import *
@@ -215,9 +216,10 @@ def validate_tx(filename):
         return err
     else:
         out = out.strip('\n')
-        #info('validate tx: ' + command) 
-        #info({json: out[-7:] })
-        if out[-7:] == 'Success':
+        info('validated')
+        info(out)
+        found_success = re.findall("Success",out)
+        if found_success != 0:
             return None
         else:
             return out
@@ -236,10 +238,10 @@ def broadcast_tx(filename):
         return err
     else:
         out = out.strip('\n')
-        #info('broadcast tx: ' + command)
-        #info({json: out[-7:] })
         info('broadcasted')
-        if out[-7:] == 'Success':
+        info(out)
+        found_success = re.findall("Success",out)
+        if found_success != 0:
             return None
         else:
             return out
