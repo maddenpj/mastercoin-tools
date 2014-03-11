@@ -1,4 +1,15 @@
 #!/usr/bin/python
+
+#######################################################
+#                                                     #
+#  Copyright Masterchain Grazcoin Grimentz 2013-2014  #
+#  https://github.com/grazcoin/mastercoin-tools       #
+#  https://masterchain.info                           #
+#  masterchain@@bitmessage.ch                         #
+#  License AGPLv3                                     #
+#                                                     #
+#######################################################
+
 from msc_utils_obelisk import *
 
 currency_type_dict={'00000001':'Mastercoin','00000002':'Test Mastercoin'}
@@ -111,6 +122,9 @@ def parse_bitcoin_payment(tx, tx_hash='unknown'):
     parse_dict['fee']=from_satoshi(total_inputs-total_outputs)
     parse_dict['tx_hash']=tx_hash
     parse_dict['invalid']=(True,'bitcoin payment')
+    parse_dict['icon']='bitcoin'
+    parse_dict['icon_text']='Bitcoin payment'
+    parse_dict['color']='bgc-done'
     return parse_dict
 
 def peek_and_decode(outputs_list):
@@ -280,11 +294,6 @@ def parse_multisig(tx, tx_hash='unknown'):
             to_address=o['address']
             continue
 
-    # no recipient?
-    if to_address=='unknown':
-        info('no recipient tx '+tx_hash)
-        return {'tx_hash':tx_hash, 'invalid':(True, 'no recipient')}
-
     for o in outputs_list_no_exodus:
         if o['address']==None: # This should be the multisig
             script=o['script']
@@ -333,6 +342,12 @@ def parse_multisig(tx, tx_hash='unknown'):
                 data_dict=parse_data_script(dataHex_deobfuscated_list[0])
             except IndexError:
                 error('cannot parse dataHex_deobfuscated_list')
+
+            # no recipient? allow for sell offer
+            if to_address=='unknown' and (data_dict['transactionType'] == '0000' or data_dict['transactionType'] == '0016'):
+                info('no recipient tx '+tx_hash)
+                return {'tx_hash':tx_hash, 'invalid':(True, 'no recipient')}
+
             if len(data_dict) >= 6: # at least 6 basic fields got parse on the first dataHex
                 amount=int(data_dict['amount'],16)/100000000.0
                 parse_dict=data_dict
@@ -367,7 +382,11 @@ def parse_multisig(tx, tx_hash='unknown'):
                             price_per_coin=bitcoin_amount_desired/amount
                         else:
                             price_per_coin=0
-                            parse_dict['invalid']=(True,'non positive sell offer amount')
+                            if amount == 0 and data_dict['transactionVersion']=='0000':
+                                    # cancel sell order
+                                    pass
+                            else:
+                                parse_dict['invalid']=(True,'non positive sell offer amount')
                         # duplicate with another name
                         parse_dict['formatted_amount_available'] = parse_dict['formatted_amount']
                         # format fields
