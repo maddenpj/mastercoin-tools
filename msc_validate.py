@@ -1246,7 +1246,7 @@ def check_mastercoin_transaction(t, index=-1):
 
                     # invalidate accept for addresses that already have a running accept from that address
                     try:
-                        bids_hash_list=bids_dict[sell_offer_tx['tx_hash']]
+                        bids_hash_list=offers_dict[sell_offer_tx['tx_hash']]
                         for b_hash in bids_hash_list:
                             b = tx_dict[b_hash][-1]
                             try:
