@@ -108,7 +108,7 @@ def get_git_details(directory="~/mastercoin-tools"):
     repo = git.Repo(directory)
     assert repo.bare == False
     head_commit=repo.head.commit
-    timestamp=format_time_from_epoch(int(head_commit.authored_date), True)
+    timestamp='Unknown, because of https://github.com/gitpython-developers/GitPython/issues/110'
     return(head_commit.hexsha,timestamp)
 
 def archive_repo(directory="~/mastercoin-tools"):
